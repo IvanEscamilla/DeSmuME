@@ -119,12 +119,17 @@ int main(int argc, char **argv)
 	
 	std::vector<std::string> files = {};
 	
+	std::string extension = ".nds";
+	
 	DIR *dir;
 	struct dirent *ent;
 	if ((dir = opendir ("sdmc:/NDS/")) != NULL) {
 	/* print all the files and directories within directory */
 		while ((ent = readdir (dir)) != NULL) {
+			std::string fname = (ent->d_name);
+			if(fname.find(extension, (fname.length() - extension.length())) != std::string::npos){
 			 files.push_back(ent->d_name);
+		}
 		}
 		closedir (dir);
 	} else {
@@ -210,7 +215,8 @@ int main(int argc, char **argv)
 	backup_setManualBackupType(0);
 
 	int jitblocksize;
-	char romconf[256];
+	
+	char* rom = malloc(256);
 	
 	char* romconf = malloc(256);
 	
@@ -233,8 +239,6 @@ int main(int argc, char **argv)
 	#endif
 
 	CommonSettings.ConsoleType = NDS_CONSOLE_TYPE_FAT;
-
-	char* rom = malloc(256);
 	
 	printf("\n%s",rom);
 	
