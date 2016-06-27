@@ -19,7 +19,7 @@
 * Boston, MA 02111-1307, USA.
 */
 #include <stdio.h>
-
+#include <dirent.h>
 
 //DIRTY FIX FOR CONFLICTING TYPEDEFS
 namespace ctrulib {
@@ -42,7 +42,7 @@ namespace ctrulib {
 
 #include "input.h"
 
-#define FRAMESKIP 1
+#define FRAMESKIP 3
 
 using namespace ctrulib;
 
@@ -115,7 +115,78 @@ int main(int argc, char **argv)
 	gfxSet3D(false);
 
 	gfxInit(GSP_RGBA8_OES,GSP_RGBA8_OES,false);
-	//consoleInit(GFX_BOTTOM, NULL);
+	consoleInit(GFX_BOTTOM, NULL);
+	
+	std::vector<std::string> files = {};
+	
+	DIR *dir;
+	struct dirent *ent;
+	if ((dir = opendir ("sdmc:/NDS/")) != NULL) {
+	/* print all the files and directories within directory */
+		while ((ent = readdir (dir)) != NULL) {
+			 files.push_back(ent->d_name);
+		}
+		closedir (dir);
+	} else {
+		/* could not open directory */
+		perror ("");
+		return EXIT_FAILURE;
+	}
+	
+	int cursorPosition = 0;
+	
+	int i = 0;
+	
+	char* romfilename = malloc(256);
+	
+	bool whileloop = true;
+	
+	while(whileloop){
+		if(files.size() >= 29){
+			for(i = 0; i < 30; i++){
+			if(cursorPosition == i){
+				printf("--> %s\n", files.at(i).c_str());
+			} else {
+				printf("%s\n", files.at(i).c_str());
+			}
+			}
+		} else {
+			for(i = 0; i < files.size(); i++){
+			if(cursorPosition == i){
+				printf("--> %s\n", files.at(i).c_str());
+			} else {
+				printf("%s\n", files.at(i).c_str());
+			}
+			}
+			}
+			
+			while(true){
+				hidScanInput();
+				
+				u32 hDown = hidKeysDown();
+				
+				if(hDown & KEY_A){
+					romfilename = (char*)(files.at(cursorPosition)).c_str();
+					consoleClear;
+					whileloop = false;
+					//break;
+					break;
+				} else if((hDown & KEY_DOWN) && cursorPosition != 29){
+					consoleClear();
+					cursorPosition++;
+					break;
+				} else if((hDown & KEY_UP) && cursorPosition != 0){
+					consoleClear();
+					cursorPosition--;
+					break;
+				}
+			}
+			
+		}
+	
+	
+	gfxExit();
+	gfxInit(GSP_RGBA8_OES,GSP_RGBA8_OES,false);
 
  	gfxSwapBuffersGpu();
 	gspWaitForVBlank();
@@ -138,16 +209,36 @@ int main(int argc, char **argv)
 
 	backup_setManualBackupType(0);
 
+	int jitblocksize;
+	char romconf[256];
+	
+	char* romconf = malloc(256);
+	
+	strcat(rom, "sdmc:/NDS/");
+	strcat(rom, romfilename);
+	strcat(romconf, rom);
+	strcat(romconf, ".conf");
+	
+	FILE* jitfile = fopen(romconf, "r");
+	
+	fscanf(jitfile,"%d",&jitblocksize); 
+	
+	printf("%d\n", jitblocksize);
+	
 	#ifdef HAVE_JIT
 
 	CommonSettings.use_jit = true;
-	CommonSettings.jit_max_block_size = 12;
+	CommonSettings.jit_max_block_size = jitblocksize;
 
 	#endif
 
 	CommonSettings.ConsoleType = NDS_CONSOLE_TYPE_FAT;
 
-	if (NDS_LoadROM( "sdmc:/game.nds", NULL) < 0) {
+	char* rom = malloc(256);
+	
+	printf("\n%s",rom);
+	
+	if (NDS_LoadROM( rom, NULL) < 0) {
 		printf("Error loading game.nds\n");
 	}
 	
@@ -156,12 +247,26 @@ int main(int argc, char **argv)
 	uint32_t *tfb = (uint32_t*)gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
 	uint32_t *bfb = (uint32_t*)gfxGetFramebuffer(GFX_BOTTOM, GFX_LEFT, NULL, NULL);
 
+	consoleClear();
+	
+	int cycle = 0;
 
 	while(aptMainLoop()) {
 
 		for(int i=0; i < FRAMESKIP; i++){
 			NDS_SkipNextFrame();
 			NDS_exec<false>();
+		}
+		
+		//printf("cycle!");
+		
+		cycle++;
+		
+		//printf("%d\n",cycle);
+		
+		if(cycle == 50){
+		consoleClear();
+		//printf("cleared");
 		}
 		
 		desmume_cycle();
